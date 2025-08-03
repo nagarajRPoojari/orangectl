@@ -287,6 +287,7 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 		}
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
 			service.Spec = corev1.ServiceSpec{
+				// Creating a headless service to get stable dns names
 				ClusterIP: "None",
 				Selector: map[string]string{
 					// Selector labels should match with one being specified in
