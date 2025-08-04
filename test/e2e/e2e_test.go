@@ -196,7 +196,7 @@ var _ = Describe("Manager", Ordered, func() {
 
 			By("waiting for the metrics endpoint to be ready")
 			verifyMetricsEndpointReady := func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "endpointslices", metricsServiceName, "-n", namespace)
+				cmd := exec.Command("kubectl", "get", "endpoints", metricsServiceName, "-n", namespace)
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(ContainSubstring("8443"), "Metrics endpoint is not ready")
