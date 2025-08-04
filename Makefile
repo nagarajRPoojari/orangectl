@@ -88,7 +88,6 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 		$(KIND) load docker-image quay.io/jetstack/cert-manager-webhook:v1.18.2 --name $(KIND_CLUSTER); \
 		$(KIND) load docker-image quay.io/jetstack/cert-manager-controller:v1.18.2 --name $(KIND_CLUSTER); \
 		kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml; \
-		docker exec -i $(KIND_CLUSTER)-control-plane sh -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"; \
 		kubectl apply -f config/rbac/cluster_role.yaml; \
 		kubectl apply -f config/rbac/cluster_role_binding.yaml; \
 	fi
