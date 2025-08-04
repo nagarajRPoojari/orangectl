@@ -46,13 +46,13 @@ var _ = Describe("OrangeCtl Controller", func() {
 				Router: ctlv1alpha1.RouterSpec{
 					Name:   "router",
 					Labels: map[string]string{},
-					Image:  "docker.io/nagsbixy/gateway:latest",
+					Image:  "docker.io/np137270/gateway:latest",
 					Port:   8000,
 				},
 				Shard: ctlv1alpha1.ShardSpec{
 					Name:     "shard",
 					Labels:   map[string]string{},
-					Image:    "docker.io/nagsbixy/orange:latest",
+					Image:    "docker.io/np137270/orange:latest",
 					Count:    1,
 					Replicas: 1,
 					Port:     52001,
