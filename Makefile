@@ -60,7 +60,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -v $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -v -json -count=1 $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
@@ -88,6 +88,31 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 		$(KIND) load docker-image quay.io/jetstack/cert-manager-webhook:v1.18.2 --name $(KIND_CLUSTER); \
 		$(KIND) load docker-image quay.io/jetstack/cert-manager-controller:v1.18.2 --name $(KIND_CLUSTER); \
 		kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml; \
+		kubectl apply -f config/rbac/cluster_role.yaml; \
+		kubectl apply -f config/rbac/cluster_role_binding.yaml; \
+	fi
+
+.PHONY: setup-test-e2e-local
+setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
+	@command -v $(KIND) >/dev/null 2>&1 || { \
+		echo "Kind is not installed. Please install Kind manually."; \
+		exit 1; \
+	}
+
+	@CLUSTERS="$$( $(KIND) get clusters )"; \
+	if echo "$$CLUSTERS" | grep -q "$(KIND_CLUSTER)"; then \
+		echo "Kind cluster '$(KIND_CLUSTER)' already exists. Skipping creation."; \
+	else \
+		echo "Creating Kind cluster '$(KIND_CLUSTER)'..."; \
+		$(KIND) create cluster --name $(KIND_CLUSTER) --config kind-config.yaml; \
+		docker pull quay.io/jetstack/cert-manager-cainjector:v1.18.2; \
+		docker pull quay.io/jetstack/cert-manager-webhook:v1.18.2; \
+		docker pull quay.io/jetstack/cert-manager-controller:v1.18.2; \
+		$(KIND) load docker-image quay.io/jetstack/cert-manager-cainjector:v1.18.2 --name $(KIND_CLUSTER); \
+		$(KIND) load docker-image quay.io/jetstack/cert-manager-webhook:v1.18.2 --name $(KIND_CLUSTER); \
+		$(KIND) load docker-image quay.io/jetstack/cert-manager-controller:v1.18.2 --name $(KIND_CLUSTER); \
+		kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml; \
+		docker exec -i $(KIND_CLUSTER)-control-plane sh -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"; \
 		kubectl apply -f config/rbac/cluster_role.yaml; \
 		kubectl apply -f config/rbac/cluster_role_binding.yaml; \
 	fi
