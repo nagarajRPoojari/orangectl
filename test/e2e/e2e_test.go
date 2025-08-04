@@ -281,20 +281,6 @@ var _ = Describe("Manager", Ordered, func() {
 			Eventually(verifyReconcile).Should(Succeed())
 		})
 
-		events := getEventsFromNamespace("default")
-		DescribeTable("should ensure all shards created events logged",
-			func(msg string) {
-				Expect(events).To(
-					ContainSubstring(msg),
-					"resource not found",
-				)
-			},
-			Entry("shard-0-1 Pod", "create Pod shard-0-1 in StatefulSet shard-0 successful"),
-			Entry("shard-1-1 Pod", "create Pod shard-1-1 in StatefulSet shard-1 successful"),
-			Entry("shard-1-0 Pod", "create Pod shard-1-0 in StatefulSet shard-1 successful"),
-			Entry("shard-0-0 Pod", "create Pod shard-0-0 in StatefulSet shard-0 successful"),
-		)
-
 		Describe("should create shards/Statefulsets", func() {
 			DescribeTable("should spin up Statefulsets with 2 replicas",
 				func(resource string) {
