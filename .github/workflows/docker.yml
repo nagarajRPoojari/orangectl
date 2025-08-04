@@ -1,8 +1,9 @@
 name: Docker Hub Login Test
 
 on:
-  workflow_dispatch:
-
+  push:
+  pull_request:
+    
 jobs:
   test-docker-login:
     runs-on: ubuntu-latest
