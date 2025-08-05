@@ -127,8 +127,9 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  routerSpec.Name,
-							Image: routerSpec.Image,
+							Name:            routerSpec.Name,
+							Image:           routerSpec.Image,
+							ImagePullPolicy: corev1.PullNever,
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: routerSpec.Port,
@@ -232,8 +233,9 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "shard",
-							Image: shardSpec.Image,
+							Name:            "shard",
+							Image:           shardSpec.Image,
+							ImagePullPolicy: corev1.PullNever,
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: shardSpec.Port,

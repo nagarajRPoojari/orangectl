@@ -75,12 +75,12 @@ var _ = Describe("Manager", Ordered, func() {
 	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
 	// and deleting the namespace.
 	AfterAll(func() {
-		By("cleaning up the curl pod for metrics")
-		cmd := exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
-		_, _ = utils.Run(cmd)
+		// By("cleaning up the curl pod for metrics")
+		// cmd := exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
+		// _, _ = utils.Run(cmd)
 
 		By("deleting ClsuterRoleBinding")
-		cmd = exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName, "-n", namespace)
+		cmd := exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName, "-n", namespace)
 		_, _ = utils.Run(cmd)
 
 		By("undeploying the controller-manager")
@@ -214,33 +214,39 @@ var _ = Describe("Manager", Ordered, func() {
 			Eventually(verifyMetricsServerStarted).Should(Succeed())
 
 			By("creating the curl-metrics pod to access the metrics endpoint")
+			shellCommand := fmt.Sprintf(
+				"curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics",
+				token, metricsServiceName, namespace,
+			)
+
+			overrides := fmt.Sprintf(`{
+				"spec": {
+					"containers": [{
+					"name": "curl",
+					"image": "curlimages/curl:latest",
+					"imagePullPolicy": "Never",
+					"command": ["/bin/sh", "-c"],
+					"args": ["%s"],
+					"securityContext": {
+						"readOnlyRootFilesystem": true,
+						"allowPrivilegeEscalation": false,
+						"capabilities": {
+						"drop": ["ALL"]
+						},
+						"runAsNonRoot": true,
+						"runAsUser": 1000,
+						"seccompProfile": {
+						"type": "RuntimeDefault"
+						}
+					}
+					}],
+					"serviceAccountName": "%s"
+				}
+				}`, shellCommand, serviceAccountName)
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
 				"--namespace", namespace,
 				"--image=curlimages/curl:latest",
-				"--overrides",
-				fmt.Sprintf(`{
-					"spec": {
-						"containers": [{
-							"name": "curl",
-							"image": "curlimages/curl:latest",
-							"command": ["/bin/sh", "-c"],
-							"args": ["curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics"],
-							"securityContext": {
-								"readOnlyRootFilesystem": true,
-								"allowPrivilegeEscalation": false,
-								"capabilities": {
-									"drop": ["ALL"]
-								},
-								"runAsNonRoot": true,
-								"runAsUser": 1000,
-								"seccompProfile": {
-									"type": "RuntimeDefault"
-								}
-							}
-						}],
-						"serviceAccountName": "%s"
-					}
-				}`, token, metricsServiceName, namespace, serviceAccountName))
+				"--overrides", overrides)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create curl-metrics pod")
 
@@ -253,7 +259,7 @@ var _ = Describe("Manager", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(Equal("Succeeded"), "curl pod in wrong status")
 			}
-			Eventually(verifyCurlUp, 5*time.Minute).Should(Succeed())
+			Eventually(verifyCurlUp, 1*time.Minute).Should(Succeed())
 
 			By("getting the metrics by checking curl-metrics logs")
 			metricsOutput := getMetricsOutput()

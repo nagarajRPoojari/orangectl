@@ -1,0 +1,64 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      KIND_CLUSTER: orangectl-test-e2e
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl make docker.io
+          go install sigs.k8s.io/kind@v0.23.0
+          go install sigs.k8s.io/kustomize/kustomize/v5@latest
+
+      - name: Build Docker images
+        run: |
+          docker build -t np137270/orangectl:latest .
+          docker pull np137270/orange:latest 
+          docker pull np137270/gateway:latest 
+          docker pull curlimages/curl:latest
+
+      - name: Create Kind cluster
+        run: |
+          kind create cluster --name $KIND_CLUSTER --wait 60s
+
+      - name: Load images into Kind
+        run: |
+          kind load docker-image np137270/orangectl:latest --name $KIND_CLUSTER
+          kind load docker-image np137270/orange:latest --name $KIND_CLUSTER
+          kind load docker-image np137270/gateway:latest --name $KIND_CLUSTER
+          kind load docker-image curlimages/curl:latest --name $KIND_CLUSTER
+
+      - name: Deploy to cluster (kustomize)
+        run: |
+          cd config/manager
+          kustomize edit set image controller=np137270/orangectl:latest
+          cd ../..
+          kustomize build config/default | kubectl apply -f -
+
+      - name: Wait for pods to be ready
+        run: |
+          kubectl wait --for=condition=Ready pods --all --all-namespaces --timeout=120s
+
+      - name: Run E2E Tests
+        run: |
+          go mod tidy
+          make test-e2e
