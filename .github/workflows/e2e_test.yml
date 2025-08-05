@@ -20,12 +20,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl make docker.io
+          go mod tidy
           go install sigs.k8s.io/kind@v0.23.0
           go install sigs.k8s.io/kustomize/kustomize/v5@latest
 
@@ -60,5 +59,4 @@ jobs:
 
       - name: Run E2E Tests
         run: |
-          go mod tidy
           make test-e2e
