@@ -35,24 +35,6 @@ jobs:
           docker pull np137270/gateway:latest 
           docker pull curlimages/curl:latest
 
-      - name: Create Kind cluster
-        run: |
-          kind create cluster --name $KIND_CLUSTER --wait 60s
-
-      - name: Load images into Kind
-        run: |
-          kind load docker-image np137270/orangectl:latest --name $KIND_CLUSTER
-          kind load docker-image np137270/orange:latest --name $KIND_CLUSTER
-          kind load docker-image np137270/gateway:latest --name $KIND_CLUSTER
-          kind load docker-image curlimages/curl:latest --name $KIND_CLUSTER
-
-      - name: Deploy to cluster (kustomize)
-        run: |
-          cd config/manager
-          kustomize edit set image controller=np137270/orangectl:latest
-          cd ../..
-          kustomize build config/default | kubectl apply -f -
-
       - name: Wait for pods to be ready
         run: |
           kubectl wait --for=condition=Ready pods --all --all-namespaces --timeout=120s
