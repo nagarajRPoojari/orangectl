@@ -23,6 +23,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -93,8 +94,72 @@ func (r *OrangeCtlReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // are created or updated to match the OrangeCtl spec. It sets appropriate labels,
 // attaches the router to the given ConfigMap, and establishes controller ownership.
 func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ctlv1alpha1.OrangeCtl) error {
+
 	routerSpec := orangeCtl.Spec.Router
 	namespace := orangeCtl.Spec.Namespace
+	serviceAccountName := "pod-watcher-sa"
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccountName,
+			Namespace: namespace,
+		},
+	}
+
+	// create service account for router provding and attach controller reference to
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, sa, func() error {
+		return controllerutil.SetControllerReference(orangeCtl, sa, r.Scheme)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-watcher-role",
+			Namespace: namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, role, func() error {
+		role.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+		}
+		return controllerutil.SetControllerReference(orangeCtl, role, r.Scheme)
+	})
+	if err != nil {
+		return err
+	}
+
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-watcher-binding",
+			Namespace: namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, rb, func() error {
+		rb.RoleRef = rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     role.Name,
+		}
+		rb.Subjects = []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      sa.Name,
+				Namespace: sa.Namespace,
+			},
+		}
+		return controllerutil.SetControllerReference(orangeCtl, rb, r.Scheme)
+	})
+	if err != nil {
+		return err
+	}
 
 	labels := routerSpec.Labels
 	if labels == nil {
@@ -110,7 +175,7 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
 		deploy.Labels = labels
 		deploy.Spec = appsv1.DeploymentSpec{
 
@@ -125,6 +190,7 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: serviceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:            routerSpec.Name,
@@ -135,10 +201,6 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 									ContainerPort: routerSpec.Port,
 								},
 							},
-							VolumeMounts: []corev1.VolumeMount{{
-								Name:      "cfg",
-								MountPath: "/app/config",
-							}},
 							Env: []corev1.EnvVar{
 								// __POD_SELECTOR__ will be used by router to identify pods to watch
 								{Name: "__POD_SELECTOR__", Value: fmt.Sprintf("%s-shard-pod", orangeCtl.Name)},
