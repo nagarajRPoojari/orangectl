@@ -1,0 +1,20 @@
+{{- if .Values.rbac.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: orangectl-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  - apiGroups: ["ctl.orangectl.orange.db"]
+    resources: ["orangectls", "orangectls/status", "orangectls/finalizers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+{{- end -}}

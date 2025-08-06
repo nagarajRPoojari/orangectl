@@ -6,6 +6,8 @@ cliVersion: 4.7.1
 domain: orangectl.orange.db
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  helm.kubebuilder.io/v1-alpha: {}
 projectName: orangectl
 repo: orangectl
 resources:
