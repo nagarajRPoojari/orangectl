@@ -1,0 +1,450 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+    control-plane: controller-manager
+  name: orangectl-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: orangectls.ctl.orangectl.orange.db
+spec:
+  group: ctl.orangectl.orange.db
+  names:
+    kind: OrangeCtl
+    listKind: OrangeCtlList
+    plural: orangectls
+    singular: orangectl
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: OrangeCtl is the Schema for the orangectls API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of OrangeCtl
+            properties:
+              namespace:
+                description: Namespace in which all components (router, shards) will
+                  be deployed
+                type: string
+              router:
+                description: Router defines the configuration for the proxy/router
+                  component
+                properties:
+                  config:
+                    additionalProperties:
+                      type: string
+                    description: Optional environment variables or config parameters
+                    type: object
+                  image:
+                    description: Container image for the router
+                    type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Labels to apply to the router deployment and service
+                    type: object
+                  name:
+                    description: Name of the router deployment/service
+                    type: string
+                  port:
+                    description: Port exposed by the router container
+                    format: int32
+                    type: integer
+                required:
+                - image
+                - name
+                - port
+                type: object
+              shard:
+                description: Shard defines the configuration for the shard StatefulSets
+                properties:
+                  config:
+                    additionalProperties:
+                      type: string
+                    description: Optional environment variables or config parameters
+                    type: object
+                  count:
+                    description: Number of shards to deploy (each as a StatefulSet)
+                    type: integer
+                  image:
+                    description: Container image for each shard
+                    type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Labels to apply to each shard StatefulSet and its
+                      pods
+                    type: object
+                  name:
+                    description: Base name prefix for shard StatefulSets (e.g., "shard"
+                      -> "shard-0", "shard-1", etc.)
+                    type: string
+                  port:
+                    description: Port exposed by each shard container
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Number of replicas per shard StatefulSet
+                    format: int32
+                    type: integer
+                required:
+                - count
+                - image
+                - name
+                - port
+                - replicas
+                type: object
+            required:
+            - namespace
+            - router
+            - shard
+            type: object
+          status:
+            description: status defines the observed state of OrangeCtl
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-controller-manager
+  namespace: orangectl-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-leader-election-role
+  namespace: orangectl-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: orangectl-manager-role
+rules:
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: orangectl-metrics-auth-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: orangectl-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-orangectl-admin-role
+rules:
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls
+  verbs:
+  - '*'
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-orangectl-editor-role
+rules:
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-orangectl-viewer-role
+rules:
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ctl.orangectl.orange.db
+  resources:
+  - orangectls/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-leader-election-rolebinding
+  namespace: orangectl-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: orangectl-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: orangectl-controller-manager
+  namespace: orangectl-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+  name: orangectl-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: orangectl-manager-role
+subjects:
+- kind: ServiceAccount
+  name: orangectl-controller-manager
+  namespace: orangectl-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: orangectl-metrics-auth-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: orangectl-metrics-auth-role
+subjects:
+- kind: ServiceAccount
+  name: orangectl-controller-manager
+  namespace: orangectl-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+    control-plane: controller-manager
+  name: orangectl-controller-manager-metrics-service
+  namespace: orangectl-system
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/name: orangectl
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: orangectl
+    control-plane: controller-manager
+  name: orangectl-controller-manager
+  namespace: orangectl-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orangectl
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        app.kubernetes.io/name: orangectl
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --metrics-bind-address=:8443
+        - --leader-elect
+        - --health-probe-bind-address=:8081
+        command:
+        - /manager
+        image: np137270/orangectl:latest
+        imagePullPolicy: Never
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports: []
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts: []
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: orangectl-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes: []
