@@ -209,7 +209,7 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 			maps.Copy(ss.Labels, shardSpec.Labels)
 			ss.Labels["orangectl"] = orangeCtl.Name
 			ss.Labels["shard"] = shardName
-			ss.Labels["__POD_SELECTOR__"] = fmt.Sprintf("%s-shard-pod", orangeCtl.Name)
+			ss.Labels["pod-selector"] = fmt.Sprintf("%s-shard-pod", orangeCtl.Name)
 
 			// StatefulSet spec
 			ss.Spec.ServiceName = shardName
