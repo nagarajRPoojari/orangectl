@@ -4,7 +4,18 @@ orangedb orchestrator for sharded deployment
 ## Description
 orangectl is a part of orange ecosystem, supports easy deployment of orangedb on kubernetes cluster
 
-## Getting Started
+## Install
+
+1. using helm
+```sh
+kubectl apply -f https://raw.githubusercontent.com/nagarajRPoojari/orangectl/main/dist/install.yaml
+```
+2. using kubectl
+```sh
+kubectl apply -f https://raw.githubusercontent.com/nagarajRPoojari/orangectl/main/dist/install.yaml
+```
+
+## Devolopment
 
 ### Prerequisites
 - go version v1.24.0+
@@ -93,7 +104,10 @@ Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
 the project, i.e.:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/orangectl/<tag or branch>/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/nagarajRPoojari/orangectl/main/dist/install.yaml
+```
+```sh
+kubectl delete -f https://raw.githubusercontent.com/nagarajRPoojari/orangectl/main/dist/install.yaml
 ```
 
 ### By providing a Helm Chart
@@ -106,6 +120,12 @@ kubebuilder edit --plugins=helm/v1-alpha
 
 2. See that a chart was generated under 'dist/chart', and users
 can obtain this solution from there.
+
+3. Install with helm
+
+```sh
+helm install my-release ./dist/chart --create-namespace --namespace orangectl-system
+```
 
 > [!NOTE]
 > If you change the project, you need to update the Helm Chart
