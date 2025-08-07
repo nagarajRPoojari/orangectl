@@ -5,6 +5,7 @@ controllerManager:
     image:
       repository: np137270/orangectl
       tag: latest
+      pullPolicy: IfNotPresent
     args:
       - "--leader-elect"
       - "--metrics-bind-address=:8443"
