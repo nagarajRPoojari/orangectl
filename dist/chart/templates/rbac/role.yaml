@@ -8,6 +8,14 @@ metadata:
   name: orangectl-manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ctl.orangectl.orange.db
   resources:
   - orangectls

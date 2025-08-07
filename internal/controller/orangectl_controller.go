@@ -203,8 +203,10 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 								},
 							},
 							Env: []corev1.EnvVar{
-								// __POD_SELECTOR__ will be used by router to identify pods to watch
-								{Name: "__POD_SELECTOR__", Value: fmt.Sprintf("%s-shard-pod", orangeCtl.Name)},
+								// __K8S_POD_SELECTOR__ will be used by router to identify pods to watch
+								{Name: "__K8S_POD_SELECTOR__", Value: fmt.Sprintf("%s-shard-pod", orangeCtl.Name)},
+								{Name: "__K8S_NAMESAPCE__", Value: namespace},
+								{Name: "__BUILD_MODE__", Value: "prod"},
 							},
 						},
 					},
