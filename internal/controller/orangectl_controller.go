@@ -275,6 +275,8 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 			maps.Copy(ss.Labels, shardSpec.Labels)
 			ss.Labels["orangectl"] = orangeCtl.Name
 			ss.Labels["shard"] = shardName
+
+			// shard-selector is used by router to identify the set of statefulsets to watch
 			ss.Labels["shard-selector"] = fmt.Sprintf("%s-shard", orangeCtl.Name)
 
 			// StatefulSet spec
