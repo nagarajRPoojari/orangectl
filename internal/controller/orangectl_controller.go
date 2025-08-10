@@ -98,7 +98,7 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 
 	routerSpec := orangeCtl.Spec.Router
 	namespace := orangeCtl.Spec.Namespace
-	serviceAccountName := "pod-watcher-sa"
+	serviceAccountName := "statefulset-watcher-sa"
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceAccountName,
@@ -117,7 +117,7 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod-watcher-role",
+			Name:      "statefulset-watcher-role",
 			Namespace: namespace,
 		},
 	}
@@ -125,8 +125,8 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, role, func() error {
 		role.Rules = []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{""},
-				Resources: []string{"pods"},
+				APIGroups: []string{"apps"},
+				Resources: []string{"statefulsets"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 		}
@@ -138,7 +138,7 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod-watcher-binding",
+			Name:      "statefulset-watcher-binding",
 			Namespace: namespace,
 		},
 	}
@@ -204,7 +204,8 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 							},
 							Env: []corev1.EnvVar{
 								// __K8S_POD_SELECTOR__ will be used by router to identify pods to watch
-								{Name: "__K8S_POD_SELECTOR__", Value: fmt.Sprintf("%s-shard-pod", orangeCtl.Name)},
+								{Name: "__K8S_SHARD_SELECTOR__", Value: fmt.Sprintf("%s-shard", orangeCtl.Name)},
+								{Name: "__K8S__REPLICA_COUNT__", Value: "2"},
 								{Name: "__K8S_NAMESAPCE__", Value: namespace},
 								{Name: "__BUILD_MODE__", Value: "prod"},
 							},
@@ -274,7 +275,7 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 			maps.Copy(ss.Labels, shardSpec.Labels)
 			ss.Labels["orangectl"] = orangeCtl.Name
 			ss.Labels["shard"] = shardName
-			ss.Labels["pod-selector"] = fmt.Sprintf("%s-shard-pod", orangeCtl.Name)
+			ss.Labels["shard-selector"] = fmt.Sprintf("%s-shard", orangeCtl.Name)
 
 			// StatefulSet spec
 			ss.Spec.ServiceName = shardName
@@ -284,14 +285,16 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 			}
 			ss.Spec.Template = corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
+					Name:   shardName,
 					Labels: ss.Labels,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            "shard",
+							Name:            shardName,
 							Image:           shardSpec.Image,
 							ImagePullPolicy: corev1.PullNever,
+
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: shardSpec.Port,
@@ -306,9 +309,13 @@ func (r *OrangeCtlReconciler) reconcileShards(ctx context.Context, orangeCtl *ct
 										},
 									},
 								},
-								{Name: "__K8S_SERVICE_NAME__", Value: shardName},
-								{Name: "__K8S_LEASE_NAMESAPCE__", Value: namespace},
-								{Name: "__K8S_LEASE_NAME__", Value: shardName},
+								{Name: "__K8S_NAMESAPCE__", Value: namespace},
+								{Name: "__K8S_SHARD_NAME__", Value: shardName},
+								{Name: "__BUILD_MODE__", Value: "prod"},
+								{Name: "__PROD_MODE__", Value: "sharded"},
+								{Name: "__TURNON_REPLICATION__", Value: "true"},
+								{Name: "__REPLICATION_TYPE__", Value: "sync"},
+								{Name: "__REPLICA_COUNT__", Value: fmt.Sprintf("%d", shardSpec.Replicas)},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{

@@ -94,8 +94,8 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 		$(KIND) load docker-image np137270/gateway:latest --name  $(KIND_CLUSTER); \
 		$(KIND) load docker-image curlimages/curl:latest --name  $(KIND_CLUSTER); \
 		kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml; \
-		kubectl apply -f config/rbac/cluster_role.yaml; \
-		kubectl apply -f config/rbac/cluster_role_binding.yaml; \
+		kubectl apply -f config/default/cluster_role.yaml; \
+		kubectl apply -f config/default/cluster_role_binding.yaml; \
 	fi
 
 

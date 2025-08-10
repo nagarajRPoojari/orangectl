@@ -4,12 +4,16 @@ metadata:
   name: orangectl-cluster-role
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "configmaps", "serviceaccounts"]
+    resources: ["pods", "services", "configmaps", "serviceaccounts", "statefulsets"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["roles", "rolebindings"]
-    verbs: ["get", "list", "watch", "create"]
+    verbs: ["get", "list", "watch", "create", "escalate"]
 
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets"]
