@@ -233,6 +233,7 @@ func (r *OrangeCtlReconciler) reconcileRouter(ctx context.Context, orangeCtl *ct
 		service.Labels = labels
 		service.Spec = corev1.ServiceSpec{
 			Selector: labels,
+			Type:     corev1.ServiceTypeNodePort,
 			Ports: []corev1.ServicePort{
 				{
 					Port:       routerSpec.Port,
